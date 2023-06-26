@@ -1,0 +1,69 @@
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+const char* ssid = "S23 de Daniel";
+const char* password = "wtro7120";
+const char* mqttServer = "ec2danielluna.duckdns.org";
+const int mqttPort = 1883;
+const char* mqttUser = "daniel";
+const char* mqttPassword = "daniel";
+const char* mqttTopictemperatura = "esp32/temperatura";
+const char* mqttTopicumidade = "esp32/umidade";
+
+const int sensorPintemperatura = 33; // Potenciômetro da Sala
+const int sensorPinumidade = 34; // Potenciômetro da Cozinha
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup() {
+  Serial.begin(115200);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.print("Conectado ao WiFi com endereço IP: ");
+  Serial.println(WiFi.localIP());
+
+  client.setServer(mqttServer, mqttPort);
+  while (!client.connected()) {
+    Serial.println("Conectando ao servidor MQTT...");
+    if (client.connect("ESP32Client", mqttUser, mqttPassword)) {
+      Serial.println("Conectado ao servidor MQTT!");
+    } else {
+      Serial.print("Falha na conexão - Estado: ");
+      Serial.print(client.state());
+      delay(2000);
+    }
+  }
+}
+
+void loop() {
+  int sensorValuetemperatura = analogRead(sensorPintemperatura);
+  int sensorValueumidade = analogRead(sensorPinumidade);
+
+  float temperatura = map(sensorValuetemperatura, 0, 4095, 0, 1000) / 10.0;
+  float umidade = map(sensorValueumidade, 0, 4095, 0, 2000) / 10.0;
+  //float quarto = map(sensorValuequarto, 0, 4095, 0, 100) / 1.0;
+
+  String temperaturaPayload = String(temperatura);
+  String umidadePayload = String(umidade);
+  //String quartoPayload = String(quarto);
+
+  Serial.print("Enviando dados para o Node-RED - temperatura: ");
+  Serial.println(temperatura);
+  client.publish(mqttTopictemperatura, temperaturaPayload.c_str());
+
+  Serial.print("Enviando dados para o Node-RED - umidade: ");
+  Serial.println(umidade);
+  client.publish(mqttTopicumidade, umidadePayload.c_str());
+
+  //Serial.print("Enviando dados para o Node-RED - quarto: ");
+  //Serial.println(quarto);
+  //client.publish(mqttTopicquarto, quartoPayload.c_str());
+
+  delay(1000);
+}
